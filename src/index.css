@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --font-ar: 'Tajawal', system-ui, -apple-system, sans-serif;
+  --font-en: 'Inter', 'Tajawal', system-ui, sans-serif;
+}
+
+html[dir="rtl"] body {
+  font-family: var(--font-ar);
+}
+
+html[dir="ltr"] body {
+  font-family: var(--font-en);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(0.92);
+    opacity: 0.95;
+  }
+}
+
+.animate-idle-pulse {
+  animation: pulseGlow 6s ease-in-out infinite;
+}
+
+/* Custom smooth dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(6, 10, 19, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(134, 230, 207, 0.4);
+}

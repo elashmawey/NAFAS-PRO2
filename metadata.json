@@ -1,0 +1,6 @@
+{
+  "name": "نَفَس - Nafas",
+  "description": "تمارين تنفّس موجّهة، عيادة تنقية الرئة وإذابة البلغم (ACBT)، موسيقى تأملية مولدة، استوديو المشاهد البصرية، تعقب التتالي اليومي والأوسمة، تسجيلات صوتية بشرية، وتكامل مع Apple Health وGoogle Health Connect",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
