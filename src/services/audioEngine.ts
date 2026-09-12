@@ -8,6 +8,9 @@ class AudioEngineService {
     { stop: () => void; gain: GainNode }
   > = new Map();
   private isMuted: boolean = false;
+  private pannerNode: StereoPannerNode | null = null;
+  private pannerLfo: OscillatorNode | null = null;
+  private is8DEnabled: boolean = false;
 
   private getContext(): AudioContext {
     if (!this.ctx) {
@@ -24,10 +27,58 @@ class AudioEngineService {
     const ac = this.getContext();
     if (!this.masterGain) {
       this.masterGain = ac.createGain();
-      this.masterGain.connect(ac.destination);
+      if (typeof ac.createStereoPanner === 'function') {
+        this.pannerNode = ac.createStereoPanner();
+        this.masterGain.connect(this.pannerNode);
+        this.pannerNode.connect(ac.destination);
+      } else {
+        this.masterGain.connect(ac.destination);
+      }
       this.masterGain.gain.value = this.isMuted ? 0 : 0.85;
     }
     return this.masterGain;
+  }
+
+  public toggle8D(): boolean {
+    this.set8DMode(!this.is8DEnabled);
+    return this.is8DEnabled;
+  }
+
+  public getIs8DEnabled(): boolean {
+    return this.is8DEnabled;
+  }
+
+  public set8DMode(enabled: boolean) {
+    this.is8DEnabled = enabled;
+    const ac = this.getContext();
+    this.getMasterGain(); // Ensure panner initialized
+
+    if (!this.pannerNode) return;
+
+    if (enabled) {
+      if (this.pannerLfo) {
+        try {
+          this.pannerLfo.stop();
+        } catch {}
+      }
+      const lfo = ac.createOscillator();
+      const lfoGain = ac.createGain();
+      lfo.frequency.value = 0.12; // slow, smooth ~8.3 sec orbit around head
+      lfoGain.gain.value = 0.88; // pan depth +/- 0.88
+      lfo.connect(lfoGain);
+      lfoGain.connect(this.pannerNode.pan);
+      lfo.start();
+      this.pannerLfo = lfo;
+    } else {
+      if (this.pannerLfo) {
+        try {
+          this.pannerLfo.stop();
+        } catch {}
+        this.pannerLfo = null;
+      }
+      this.pannerNode.pan.cancelScheduledValues(ac.currentTime);
+      this.pannerNode.pan.setTargetAtTime(0, ac.currentTime, 0.2);
+    }
   }
 
   public setMuted(muted: boolean) {

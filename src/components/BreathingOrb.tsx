@@ -9,6 +9,7 @@ interface BreathingOrbProps {
   lang: Language;
   onToggle: () => void;
   accentHue?: number;
+  phaseHint?: string;
 }
 
 const PHASE_LABELS: Record<string, { ar: string; en: string }> = {
@@ -27,7 +28,8 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
   scale,
   lang,
   onToggle,
-  accentHue = 0
+  accentHue = 0,
+  phaseHint
 }) => {
   const RADIUS = 140;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -113,6 +115,11 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
             {phase !== 'idle' && phase !== 'done' && phase !== 'paused' && (
               <span className="mt-1 text-base font-bold font-mono text-white/90 drop-shadow">
                 {remainingSeconds}s
+              </span>
+            )}
+            {phaseHint && phase !== 'idle' && phase !== 'done' && (
+              <span className="mt-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-extrabold text-white tracking-wide border border-white/30 animate-pulse">
+                {phaseHint}
               </span>
             )}
             {phase === 'idle' && (

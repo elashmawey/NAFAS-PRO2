@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { audioEngine } from '../services/audioEngine';
 import { Language, ProceduralTrackId, SoundTrackInfo } from '../types';
-import { Volume2, VolumeX, Moon, X, Sliders, Music } from 'lucide-react';
+import { Volume2, VolumeX, Moon, X, Sliders, Music, Headphones, Sparkles } from 'lucide-react';
 
 interface SoundMixerModalProps {
   isOpen: boolean;
@@ -72,6 +72,7 @@ export const SoundMixerModal: React.FC<SoundMixerModalProps> = ({ isOpen, onClos
 
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number>(0);
   const [timerRemaining, setTimerRemaining] = useState<string | null>(null);
+  const [is8DActive, setIs8DActive] = useState<boolean>(audioEngine.getIs8DEnabled());
 
   useEffect(() => {
     // Sync current playing state
@@ -80,7 +81,13 @@ export const SoundMixerModal: React.FC<SoundMixerModalProps> = ({ isOpen, onClos
       current[t.id] = audioEngine.isTrackPlaying(t.id);
     });
     setPlayingTracks(current as Record<ProceduralTrackId, boolean>);
+    setIs8DActive(audioEngine.getIs8DEnabled());
   }, [isOpen]);
+
+  const handleToggle8D = () => {
+    const next = audioEngine.toggle8D();
+    setIs8DActive(next);
+  };
 
   const handleToggle = (id: ProceduralTrackId) => {
     const isNowPlaying = audioEngine.toggleTrack(id, volumes[id]);
@@ -149,6 +156,40 @@ export const SoundMixerModal: React.FC<SoundMixerModalProps> = ({ isOpen, onClos
             aria-label="Close"
           >
             <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* 8D Spatial Audio Banner */}
+        <div className="flex items-center justify-between p-3.5 mb-4 rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-blue-950/40 to-purple-950/40 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${is8DActive ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.5)]' : 'bg-white/10 text-cyan-400'}`}>
+              <Headphones className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white">
+                  {lang === 'ar' ? 'الصوت المكاني ثلاثي الأبعاد 8D' : '8D Spatial Audio Orbit'}
+                </span>
+                <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[9px] font-extrabold text-cyan-300 border border-cyan-500/40">
+                  {is8DActive ? (lang === 'ar' ? 'مُفعّل 🎧' : 'ACTIVE 🎧') : (lang === 'ar' ? 'ضع السماعات' : 'HEADPHONES')}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                {lang === 'ar'
+                  ? 'يدور الصوت بزاوية 360° بين أذنيك بتناغم هادئ يحفز موجات ألفا وثيتا'
+                  : '360° binaural orbital panning around your head for deep relaxation'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleToggle8D}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+              is8DActive
+                ? 'bg-cyan-400 text-black shadow-md'
+                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+            }`}
+          >
+            {is8DActive ? (lang === 'ar' ? 'إيقاف 8D' : 'Turn Off') : (lang === 'ar' ? 'تفعيل 8D' : 'Enable 8D')}
           </button>
         </div>
 

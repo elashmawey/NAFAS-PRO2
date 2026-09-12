@@ -15,6 +15,9 @@ import { LungDetoxModal } from './components/LungDetoxModal';
 import { MilestonesModal } from './components/MilestonesModal';
 import { SceneSelectorModal } from './components/SceneSelectorModal';
 import { SceneBackground } from './components/SceneBackground';
+import { BoltChallengeModal } from './components/BoltChallengeModal';
+import { SmokerRecoveryModal } from './components/SmokerRecoveryModal';
+import { AestheticCardModal } from './components/AestheticCardModal';
 import { streakTracker } from './services/streakTracker';
 import {
   Mic,
@@ -34,7 +37,10 @@ import {
   RotateCcw,
   Wind,
   Flame,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Headphones,
+  Zap,
+  Share2
 } from 'lucide-react';
 
 const PATTERNS: Record<string, BreathingPattern> = {
@@ -179,6 +185,11 @@ export default function App() {
   const [isSleepJourneyOpen, setIsSleepJourneyOpen] = useState(false);
   const [isMilestonesModalOpen, setIsMilestonesModalOpen] = useState(false);
   const [isSceneModalOpen, setIsSceneModalOpen] = useState(false);
+  const [isBoltModalOpen, setIsBoltModalOpen] = useState(false);
+  const [isSmokerModalOpen, setIsSmokerModalOpen] = useState(false);
+  const [isAestheticCardModalOpen, setIsAestheticCardModalOpen] = useState(false);
+  const [is8DActive, setIs8DActive] = useState<boolean>(audioEngine.getIs8DEnabled());
+  const [activePhaseIndex, setActivePhaseIndex] = useState<number>(0);
   const [streakStats, setStreakStats] = useState(streakTracker.getStats());
   const [healthSyncToast, setHealthSyncToast] = useState<string | null>(null);
 
@@ -220,6 +231,13 @@ export default function App() {
   // Phase change cues: Human Voice + Tone + Haptics
   const cuePhase = useCallback(
     (ph: Phase) => {
+      // Special cue for Physiological Sigh second inhale
+      if (currentPatternId === 'sigh' && phaseIndexRef.current === 1) {
+        audioEngine.playCueTone(290, 430, ph.s * 0.9);
+        triggerHaptic([35, 30, 70]);
+        return;
+      }
+
       // 1. Spoken Human Voice guidance
       voiceGuide.speakPhasePrompt(ph.k, lang);
 
@@ -242,7 +260,7 @@ export default function App() {
         }, 1200);
       }
     },
-    [lang, triggerHaptic]
+    [currentPatternId, lang, triggerHaptic]
   );
 
   const finishSession = useCallback(() => {
@@ -284,9 +302,15 @@ export default function App() {
     );
     setTimeout(() => setHealthSyncToast(null), 5500);
 
+    // Prompt shareable Aesthetic Zen Card!
+    setTimeout(() => {
+      setIsAestheticCardModalOpen(true);
+    }, 1800);
+
     setTimeout(() => {
       setAppState('idle');
       setOrbScale(0.8);
+      setActivePhaseIndex(0);
     }, 2800);
   }, [todayBreaths, pattern, lang, triggerHaptic]);
 
@@ -317,6 +341,7 @@ export default function App() {
           }
 
           const nextPhase = pattern.phases[phaseIndexRef.current];
+          setActivePhaseIndex(phaseIndexRef.current);
           setAppState(nextPhase.k);
           cuePhase(nextPhase);
         }
@@ -352,6 +377,7 @@ export default function App() {
   const toggleBreathing = () => {
     if (appState === 'idle' || appState === 'done') {
       phaseIndexRef.current = 0;
+      setActivePhaseIndex(0);
       phaseTimerRef.current = 0;
       cycleCountRef.current = 0;
       sessionStartTimeRef.current = Date.now();
@@ -373,6 +399,7 @@ export default function App() {
     if (id === currentPatternId) return;
     setAppState('idle');
     setOrbScale(0.8);
+    setActivePhaseIndex(0);
     voiceGuide.cancel();
     setCurrentPatternId(id);
     setCurrentCycle(0);
@@ -499,6 +526,32 @@ export default function App() {
             <Camera className="h-4 w-4" />
           </button>
 
+          {/* 8D Spatial Audio Quick Toggle */}
+          <button
+            onClick={() => {
+              const next = audioEngine.toggle8D();
+              setIs8DActive(next);
+            }}
+            className={`rounded-full border p-2 transition-all flex items-center gap-1.5 text-xs font-bold ${
+              is8DActive
+                ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.35)]'
+                : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
+            }`}
+            title={lang === 'ar' ? 'الصوت المكاني ثلاثي الأبعاد 8D (ضع السماعات)' : '8D Spatial Audio (Headphones)'}
+          >
+            <Headphones className="h-4 w-4" />
+            <span className="hidden xl:inline text-[10.5px] font-mono">{is8DActive ? '8D ON' : '8D'}</span>
+          </button>
+
+          {/* Aesthetic Zen Story Card */}
+          <button
+            onClick={() => setIsAestheticCardModalOpen(true)}
+            className="rounded-full border border-purple-500/30 bg-purple-500/10 p-2 text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all shadow-[0_0_12px_rgba(168,85,247,0.15)]"
+            title={lang === 'ar' ? 'بطاقة الهدوء للستوري 📸' : 'Zen Story Card 📸'}
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+
           {/* Audio Mute/Unmute */}
           <button
             onClick={toggleMute}
@@ -545,11 +598,37 @@ export default function App() {
         )}
 
         {/* Hero Intent Selection Cards */}
-        <div className="w-full max-w-xl mb-4 text-center">
-          <p className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-semibold">
-            {lang === 'ar' ? 'ماذا تحتاج في هذه اللحظة؟' : 'What do you need right now?'}
+        <div className="w-full max-w-2xl mb-4 text-center">
+          <p className="text-xs text-slate-400 uppercase tracking-wider mb-2 font-semibold flex items-center justify-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <span>{lang === 'ar' ? 'ماذا تحتاج في هذه اللحظة؟' : 'What do you need right now?'}</span>
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+            <button
+              onClick={() => {
+                selectPattern('sigh');
+                toggleBreathing();
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs font-bold text-rose-200 hover:bg-rose-500/20 hover:scale-[1.02] transition-all shadow-[0_0_12px_rgba(244,63,94,0.15)]"
+              title={lang === 'ar' ? 'بروتوكول د. هوبرمان لإيقاف التوتر في ٣٠ ثانية' : 'Dr. Huberman 30s Stress Reset'}
+            >
+              <Zap className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+              <span>{lang === 'ar' ? 'تنهيدة ٣٠ث ⚡' : '30s Sigh ⚡'}</span>
+            </button>
+            <button
+              onClick={() => setIsBoltModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-2.5 text-xs font-bold text-indigo-200 hover:bg-indigo-500/20 hover:scale-[1.02] transition-all shadow-[0_0_12px_rgba(99,102,241,0.15)]"
+            >
+              <span>🫁</span>
+              <span>{lang === 'ar' ? 'فحص الرئة' : 'BOLT Test'}</span>
+            </button>
+            <button
+              onClick={() => setIsSmokerModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs font-bold text-emerald-200 hover:bg-emerald-500/20 hover:scale-[1.02] transition-all shadow-[0_0_12px_rgba(16,185,129,0.15)]"
+            >
+              <span>🚭</span>
+              <span>{lang === 'ar' ? 'تعافي المدخن' : 'Smoker Recovery'}</span>
+            </button>
             <button
               onClick={() => {
                 selectPattern('insomnia');
@@ -559,16 +638,6 @@ export default function App() {
             >
               <span>😴</span>
               <span>{lang === 'ar' ? 'أريد النوم' : 'Need Sleep'}</span>
-            </button>
-            <button
-              onClick={() => {
-                selectPattern('detox_acbt');
-                setIsLungModalOpen(true);
-              }}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-cyan-500/25 bg-cyan-500/10 p-2.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 transition-all shadow-[0_0_10px_rgba(6,182,212,0.1)] col-span-2 sm:col-span-1"
-            >
-              <span>🫁</span>
-              <span>{lang === 'ar' ? 'تنظيف الرئة' : 'Lung Detox'}</span>
             </button>
             <button
               onClick={() => selectPattern('calm')}
@@ -584,13 +653,6 @@ export default function App() {
               <span>🧠</span>
               <span>{lang === 'ar' ? 'أريد التركيز' : 'Focus'}</span>
             </button>
-            <button
-              onClick={() => selectPattern('coherent')}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/15 transition-all"
-            >
-              <span>🌿</span>
-              <span>{lang === 'ar' ? 'استرخاء متزن' : 'Relax'}</span>
-            </button>
           </div>
         </div>
 
@@ -604,6 +666,11 @@ export default function App() {
             lang={lang}
             onToggle={toggleBreathing}
             accentHue={pattern.hue}
+            phaseHint={
+              currentPatternId === 'sigh' && activePhaseIndex === 1
+                ? (lang === 'ar' ? 'شهيق إضافي لفتح الحويصلات!' : 'Double Inhale (Top-off)!')
+                : undefined
+            }
           />
 
           {/* Cycle & Status Info */}
@@ -647,8 +714,70 @@ export default function App() {
           </div>
         </div>
 
-        {/* Quick Launch Action Buttons */}
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+        {/* Quick Launch Action Buttons & Trending Lab */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 max-w-2xl">
+          {/* BOLT Test Challenge */}
+          <button
+            onClick={() => setIsBoltModalOpen(true)}
+            className="flex items-center gap-2 rounded-2xl border border-indigo-500/40 bg-gradient-to-r from-indigo-500/20 via-indigo-600/20 to-purple-500/20 px-4 py-2 text-xs font-bold text-indigo-200 hover:border-indigo-400/60 hover:shadow-[0_0_20px_rgba(99,102,241,0.25)] transition-all"
+          >
+            <span>🫁</span>
+            <span>
+              {lang === 'ar'
+                ? 'اختبار سعة الرئة وتحدي حبس النَفَس (BOLT)'
+                : 'Lung Capacity & BOLT Challenge'}
+            </span>
+            <span className="rounded-full bg-indigo-500/30 px-1.5 py-0.5 text-[9px] text-indigo-300 font-extrabold uppercase tracking-wide">
+              {lang === 'ar' ? 'شائع' : 'Viral'}
+            </span>
+          </button>
+
+          {/* Physiological Sigh Quick Trigger */}
+          <button
+            onClick={() => {
+              selectPattern('sigh');
+              toggleBreathing();
+            }}
+            className="flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-gradient-to-r from-rose-500/20 via-pink-500/20 to-orange-500/20 px-4 py-2 text-xs font-bold text-rose-200 hover:border-rose-400/60 hover:shadow-[0_0_20px_rgba(244,63,94,0.25)] transition-all"
+          >
+            <Zap className="h-3.5 w-3.5 text-rose-300" />
+            <span>
+              {lang === 'ar'
+                ? 'التنهيدة الفسيولوجية (طرد التوتر في ٣٠ث)'
+                : 'Physiological Sigh (30s Reset)'}
+            </span>
+            <span className="rounded-full bg-rose-500/30 px-1.5 py-0.5 text-[9px] text-rose-300 font-extrabold">
+              Huberman
+            </span>
+          </button>
+
+          {/* Smoker's Recovery Tracker */}
+          <button
+            onClick={() => setIsSmokerModalOpen(true)}
+            className="flex items-center gap-2 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 px-4 py-2 text-xs font-bold text-emerald-200 hover:border-emerald-400/60 hover:shadow-[0_0_20px_rgba(16,185,129,0.25)] transition-all"
+          >
+            <span>🚭</span>
+            <span>
+              {lang === 'ar'
+                ? 'عدّاد تعافي الرئة للمدخنين وتوفير الأموال'
+                : 'Smoker Lung Recovery & Money Saved'}
+            </span>
+          </button>
+
+          {/* Aesthetic Story Card Generator */}
+          <button
+            onClick={() => setIsAestheticCardModalOpen(true)}
+            className="flex items-center gap-2 rounded-2xl border border-purple-500/40 bg-gradient-to-r from-purple-500/20 via-fuchsia-500/20 to-indigo-500/20 px-4 py-2 text-xs font-bold text-purple-200 hover:border-purple-400/60 hover:shadow-[0_0_20px_rgba(168,85,247,0.25)] transition-all"
+          >
+            <Share2 className="h-3.5 w-3.5 text-purple-300" />
+            <span>
+              {lang === 'ar'
+                ? 'بطاقة الهدوء للستوري 📸 (Story Card)'
+                : 'Aesthetic Story Card 📸'}
+            </span>
+          </button>
+
+          {/* Guided Deep Sleep Journey */}
           <button
             onClick={() => setIsSleepJourneyOpen(true)}
             className="flex items-center gap-2 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 px-4 py-2 text-xs font-bold text-amber-200 hover:border-amber-400/50 hover:shadow-[0_0_20px_rgba(245,192,86,0.2)] transition-all"
@@ -661,6 +790,7 @@ export default function App() {
             </span>
           </button>
 
+          {/* ACBT Smoker Detox */}
           <button
             onClick={() => setIsLungModalOpen(true)}
             className="flex items-center gap-2 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-cyan-500/20 to-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-200 hover:border-cyan-400/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.2)] transition-all"
@@ -668,7 +798,7 @@ export default function App() {
             <Wind className="h-4 w-4 text-cyan-400" />
             <span>
               {lang === 'ar'
-                ? '🫁 تنقية الرئة وإذابة البلغم للمدخنين (ACBT)'
+                ? '🫁 تنقية الرئة وإذابة البلغم (ACBT)'
                 : '🫁 Smoker Lung Detox & Mucus (ACBT)'}
             </span>
           </button>
@@ -778,6 +908,36 @@ export default function App() {
         currentScene={scene}
         onSelectScene={(newScene) => setScene(newScene)}
         lang={lang}
+      />
+
+      <BoltChallengeModal
+        isOpen={isBoltModalOpen}
+        onClose={() => setIsBoltModalOpen(false)}
+        lang={lang}
+        onSelectPattern={(patternId) => {
+          selectPattern(patternId);
+          toggleBreathing();
+        }}
+      />
+
+      <SmokerRecoveryModal
+        isOpen={isSmokerModalOpen}
+        onClose={() => setIsSmokerModalOpen(false)}
+        lang={lang}
+        onSelectPattern={(patternId) => {
+          selectPattern(patternId);
+          toggleBreathing();
+        }}
+      />
+
+      <AestheticCardModal
+        isOpen={isAestheticCardModalOpen}
+        onClose={() => setIsAestheticCardModalOpen(false)}
+        lang={lang}
+        currentScene={scene}
+        patternTitle={lang === 'ar' ? PATTERN_TITLES[currentPatternId]?.ar : PATTERN_TITLES[currentPatternId]?.en}
+        durationMinutes={Math.max(1, Math.round((Date.now() - (sessionStartTimeRef.current || Date.now())) / 60000))}
+        breathsCount={currentCycle || 12}
       />
     </div>
   );
