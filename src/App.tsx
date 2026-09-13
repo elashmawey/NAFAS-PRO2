@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { BreathingPattern, Language, Phase, SceneType } from './types';
 import { audioEngine } from './services/audioEngine';
 import { voiceGuide } from './services/voiceGuide';
@@ -939,6 +940,7 @@ export default function App() {
         durationMinutes={Math.max(1, Math.round((Date.now() - (sessionStartTimeRef.current || Date.now())) / 60000))}
         breathsCount={currentCycle || 12}
       />
+      <Analytics />
     </div>
   );
 }
